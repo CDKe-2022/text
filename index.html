@@ -109,7 +109,9 @@
     .action-buttons { display: flex; gap: 1rem; margin-top: 1.5rem; }
     .action-buttons .btn { flex: 1; }
     .action-buttons .btn.reveal { animation: fadeUp 0.35s ease; }
-    @media (max-width: 560px) { .action-buttons { flex-direction: column; } }
+    @media (max-width: 560px) { 
+      .action-buttons { flex-direction: column; gap: 0.75rem; } 
+    }
 
     .preview-card { display: none; }
     .preview-card.show { display: block; animation: fadeUp 0.4s ease; outline: none; }
@@ -134,8 +136,24 @@
     .line-content mark { background: var(--highlight); border: 1px solid var(--highlight-border); border-radius: 3px; padding: 0 2px; font-weight: 600; color: var(--text); }
     .line-empty { color: var(--line-num); }
 
-    .action-group { display: flex; gap: 0.7rem; flex-wrap: wrap; padding-top: 0.5rem; }
-    .action-group .btn { flex: 1; min-width: 100px; height: 46px; font-size: 0.92rem; }
+    /* 修复手机端按钮大小不一问题：使用 Grid 布局 */
+    .action-group {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.65rem;
+      padding-top: 0.5rem;
+    }
+    .action-group .btn {
+      height: 46px;
+      font-size: 0.88rem;
+      padding: 0 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .action-group.full-width {
+      grid-template-columns: 1fr;
+    }
 
     .complete-banner { margin: 1.5rem 0 0; padding: 1.2rem 1.5rem; background: var(--simplify-soft); border: 1px solid #c8efd6; border-radius: var(--radius-md); text-align: center; display: none; }
     .complete-banner.show { display: block; animation: fadeUp 0.35s ease; }
@@ -148,6 +166,42 @@
 
     .clear-file-btn { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.8); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; display: none; align-items: center; justify-content: center; cursor: pointer; color: var(--danger); font-size: 1.2rem; z-index: 2; }
     .clear-file-btn:hover { background: var(--danger); color: white; }
+
+    /* ===== 移动端全面适配优化 ===== */
+    @media (max-width: 640px) {
+      body { padding: 2rem 0.75rem 3rem; }
+      .hero { margin-bottom: 1.5rem; }
+      h1 { font-size: 1.75rem; }
+      .subtitle { font-size: 0.9rem; }
+      .card { border-radius: 16px; margin-bottom: 1rem; }
+      .card-header { padding: 1rem; font-size: 1rem; }
+      .card-body { padding: 1.25rem 1rem; }
+      .upload-area { padding: 2rem 1rem; }
+      .stat-value { font-size: 1.25rem; }
+      .switch-container { padding: 0.45rem 0.8rem 0.45rem 0.55rem; }
+      .switch { width: 36px; height: 22px; flex: 0 0 36px; }
+      .switch::after { width: 18px; height: 18px; }
+      .switch.active::after { transform: translateX(14px); }
+      
+      /* 预览区上下文优化 */
+      .line-number { flex: 0 0 32px; padding-right: 0.5rem; font-size: 0.72rem; }
+      .line-content { font-size: 0.8rem; padding-left: 0.5rem; }
+      .context-header { padding: 0.5rem 0.75rem; font-size: 0.72rem; }
+      
+      /* 预览区导航栏优化 */
+      .preview-nav { padding: 0.75rem 1rem; }
+      .preview-progress { display: none; } /* 空间紧凑时隐藏进度条，保留主计数 */
+      
+      /* 修复手机端按钮大小不一：强制两列 */
+      .action-group {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .action-group.full-width .btn {
+        grid-column: span 2;
+      }
+      
+      .toast { top: 12px; font-size: 0.85rem; padding: 0.6rem 1rem; }
+    }
   </style>
 </head>
 <body>
@@ -263,8 +317,8 @@
         <button class="btn btn-skip" id="btnSkip" title="跳过 (S)">跳过</button>
       </div>
       
-      <div class="action-group" style="margin-top: 0.5rem;">
-        <button class="btn btn-danger" id="btnDeleteAll" style="flex: 1;">全部删除/替换 (当前预览列表)</button>
+      <div class="action-group full-width" style="margin-top: 0.5rem;">
+        <button class="btn btn-danger" id="btnDeleteAll">全部删除/替换 (当前预览列表)</button>
       </div>
 
       <div class="complete-banner" id="completeBanner">
