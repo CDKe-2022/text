@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文本处理专家 v2.0</title>
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --card: #ffffff;
+      --text: #1d1d1f;
+      --muted: #86868b;
+      --border: #e8e8ed;
+      --primary: #0071e3;
+      --primary-hover: #0077ed;
+      --primary-soft: #e8f1fd;
+
+      --case: #ff9f0a;       --case-soft: #fff4e6;
+      --regex: #bf5af2;      --regex-soft: #f3e8ff;
+      --simplify: #34c759;   --simplify-soft: #e7f8ef;
+
+      --success: #34c759;
+      --danger: #ff3b30;
+      --warning: #ff9f0a;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 12px;
+      --shadow-soft: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+      --highlight: #fff3b0;
+      --highlight-border: #f5c842;
+      --context-bg: #f9f9fb;
+      --line-num: #c7c7cc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+                   "PingFang SC", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 3.5rem 1rem 4rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container { width: 100%; max-width: 820px; }
+
+    /* ========== 统一图标 ========== */
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+    }
+    .icon svg { display: block; width: 100%; height: 100%; }
+
+    /* ========== 标题 ========== */
+    .hero { text-align: center; margin-bottom: 2.5rem; }
+    h1 { font-size: 2.25rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 0.6rem; }
+    .subtitle { color: var(--muted); font-size: 1.05rem; }
+
+    /* ========== Toast 胶囊 ========== */
+    .toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      max-width: calc(100vw - 2rem);
+      background: rgba(48, 168, 82, 0.97);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      color: #fff;
+      padding: 0.7rem 1.25rem;
+      border-radius: 999px;
+      font-weight: 500;
+      font-size: 0.92rem;
+      white-space: nowrap;
+      transform: translate(-50%, -180%);
+      transition: transform 0.45s var(--ease-spring);
+      z-index: 9999;
+      box-shadow: 0 8px 24px rgba(52,199,89,0.35);
+      pointer-events: none;
+    }
+    .toast.show { transform: translate(-50%, 0); }
+    .toast.error {
+      background: rgba(235, 58, 48, 0.97);
+      box-shadow: 0 8px 24px rgba(255,59,48,0.35);
+    }
+    .toast .icon { font-size: 1.05rem; }
+
+    /* ========== 卡片 ========== */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border);
+      margin-bottom: 1.75rem;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 1.15rem 1.75rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .step-badge {
+      width: 24px; height: 24px; flex: 0 0 24px;
+      border-radius: 50%;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 0.8rem; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .card-body { padding: 1.75rem; }
+
+    /* ========== 上传区 ========== */
+    .upload-area {
+      border: 1.5px dashed #d2d2d7;
+      border-radius: var(--radius-md);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      background: #fbfbfd;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.25s, transform 0.25s var(--ease-spring);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .upload-area:hover,
+    .upload-area:focus-visible {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+    .upload-area.dragover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      transform: scale(1.015);
+      box-shadow: 0 8px 24px rgba(0,113,227,0.12);
+    }
+    .upload-area.active {
+      border-color: var(--success);
+      border-style: solid;
+      background: var(--simplify-soft);
+    }
+    .upload-icon {
+      width: 56px; height: 56px;
+      margin: 0 auto 0.9rem;
+      border-radius: 50%;
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      transition: transform 0.25s var(--ease-spring), background 0.2s, color 0.2s;
+    }
+    .upload-area:hover .upload-icon { transform: translateY(-3px); }
+    .upload-area.active .upload-icon { background: #d3f2e0; color: #1d7a3f; }
+
+    .upload-text { color: var(--muted); font-size: 0.95rem; }
+    .upload-hint { color: #b0b0b8; font-size: 0.8rem; margin-top: 0.35rem; }
+    .upload-filename {
+      color: #1d7a3f; font-weight: 600; margin-top: 0.75rem;
+      display: none; font-size: 0.92rem;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .upload-area input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+
+    /* ========== 统计 ========== */
+    .stats-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; margin-top: 1.25rem; }
+    .stat-box {
+      background: #fbfbfd; padding: 1rem; border-radius: var(--radius-sm);
+      text-align: center; border: 1px solid var(--border);
+    }
+    .stat-value {
+      display: block; font-size: 1.5rem; font-weight: 600;
+      letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+    }
+    .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; }
+
+    /* ========== 开关 ========== */
+    .options-row { display: flex; flex-wrap: wrap; gap: 0.85rem; margin-bottom: 1.75rem; }
+    .switch-container {
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      cursor: pointer; padding: 0.55rem 0.95rem 0.55rem 0.7rem;
+      border-radius: 999px; border: 1px solid var(--border); background: #fbfbfd;
+      transition: background 0.2s, border-color 0.2s;
+      user-select: none; -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+    }
+    .switch-container:hover { background: #f2f2f5; }
+    .switch-container:focus-visible { box-shadow: 0 0 0 3px rgba(0,113,227,0.3); }
+    .switch-container.disabled { opacity: 0.45; pointer-events: none; }
+
+    .switch-container[data-type="case"].on    { background: var(--case-soft);     border-color: var(--case); }
+    .switch-container[data-type="regex"].on   { background: var(--regex-soft);    border-color: var(--regex); }
+    .switch-container[data-type="simplify"].on{ background: var(--simplify-soft); border-color: var(--simplify); }
+
+    .switch {
+      position: relative; width: 42px; height: 25px;
+      background: #d2d2d7; border-radius: 999px;
+      transition: background 0.25s; flex: 0 0 42px;
+    }
+    .switch::after {
+      content: ''; position: absolute; width: 21px; height: 21px;
+      background: #fff; border-radius: 50%; top: 2px; left: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      transition: transform 0.28s var(--ease-spring);
+    }
+    .switch.active { background: var(--primary); }
+    .switch-container[data-type="case"].on .switch.active    { background: var(--case); }
+    .switch-container[data-type="regex"].on .switch.active   { background: var(--regex); }
+    .switch-container[data-type="simplify"].on .switch.active{ background: var(--simplify); }
+    .switch.active::after { transform: translateX(17px); }
+    .switch-label { font-size: 0.9rem; font-weight: 500; }
+
+    /* ========== 输入框 ========== */
+    .grid-row { display: grid; gap: 1.1rem; }
+    .col-half { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 640px) { .col-half { grid-template-columns: 1fr; } }
+
+    label {
+      display: block; font-size: 0.8rem; font-weight: 600;
+      color: var(--muted); margin-bottom: 0.55rem;
+    }
+    input[type="text"] {
+      width: 100%; padding: 0.8rem 1rem;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 1rem; outline: none; background: #fbfbfd; color: var(--text);
+      transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    input[type="text"]::placeholder { color: #b0b0b8; }
+    input[type="text"]:focus {
+      border-color: var(--primary); background: #fff;
+      box-shadow: 0 0 0 4px rgba(0,113,227,0.12);
+    }
+    input[type="text"].input-error {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 4px rgba(255,59,48,0.1);
+    }
+    .input-hint {
+      font-size: 0.78rem; color: var(--danger);
+      margin-top: 0.4rem; display: none;
+    }
+    .input-hint.visible { display: block; }
+
+    /* ========== 结果统计 ========== */
+    .result-detail {
+      margin-top: 1.5rem; padding: 1.1rem 1.25rem;
+      background: var(--simplify-soft); border: 1px solid #c8efd6;
+      border-radius: var(--radius-sm); display: none;
+    }
+    .result-detail.show { display: block; animation: fadeUp 0.35s ease; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .result-item {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.55rem; font-size: 0.92rem; color: #1d7a3f;
+    }
+    .result-item:last-child { margin-bottom: 0; }
+    .result-item .value { font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem; }
+
+    /* ========== 按钮 ========== */
+    .btn {
+      height: 50px; padding: 0 1.5rem;
+      border-radius: 999px; font-size: 1rem; font-weight: 500; font-family: inherit;
+      cursor: pointer; border: 1px solid transparent;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+      transition: transform 0.15s var(--ease-spring), background 0.2s, opacity 0.2s, box-shadow 0.2s;
+      -webkit-tap-highlight-color: transparent;
+      line-height: 1;
+    }
+    .btn .icon { font-size: 1.05rem; }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:not(:disabled):hover {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 12px rgba(0,113,227,0.25);
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-outline { background: #fff; color: var(--success); border-color: var(--success); font-weight: 600; }
+    .btn-outline:hover { background: var(--simplify-soft); }
+
+    .btn-ghost { background: #fbfbfd; color: var(--text); border-color: var(--border); }
+    .btn-ghost:hover { background: #f2f2f5; }
+
+    .action-buttons { display: flex; gap: 1rem; margin-top: 1.5rem; }
+    .action-buttons .btn { flex: 1; }
+    .action-buttons .btn.reveal { animation: fadeUp 0.35s ease; }
+    @media (max-width: 560px) { .action-buttons { flex-direction: column; } }
+
+    /* ========== 预览面板 ========== */
+    .preview-card { display: none; }
+    .preview-card.show { display: block; animation: fadeUp 0.4s ease; }
+
+    .preview-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.9rem 1.75rem;
+      border-bottom: 1px solid var(--border);
+      background: #fbfbfd;
+    }
+    .preview-counter {
+      font-size: 1rem; font-weight: 600;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .preview-counter .counter-current { color: var(--primary); font-size: 1.2rem; }
+    .preview-counter .counter-sep { color: var(--muted); }
+    .preview-counter .counter-total { color: var(--muted); }
+    .preview-progress {
+      font-size: 0.8rem; color: var(--success);
+      background: var(--simplify-soft);
+      padding: 0.25rem 0.7rem; border-radius: 999px;
+      font-weight: 500;
+    }
+
+    .preview-nav-buttons { display: flex; gap: 0.5rem; }
+    .nav-btn {
+      width: 38px; height: 38px; flex: 0 0 38px;
+      border-radius: 50%; border: 1px solid var(--border);
+      background: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text); font-size: 1rem;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease-spring);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-btn:hover:not(:disabled) { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+    .nav-btn:active:not(:disabled) { transform: scale(0.92); }
+    .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* 上下文展示区 */
+    .context-area {
+      margin: 1.5rem 0;
+      background: var(--context-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .context-header {
+      padding: 0.6rem 1rem;
+      font-size: 0.78rem; color: var(--muted); font-weight: 500;
+      border-bottom: 1px solid var(--border);
+      background: #fff;
+    }
+    .context-body {
+      font-family: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
+      font-size: 0.85rem; line-height: 1.7;
+      padding: 0.5rem 0;
+      max-height: 420px; overflow-y: auto;
+    }
+    .context-line {
+      display: flex; padding: 0 0.5rem;
+      transition: background 0.15s;
+    }
+    .context-line.hit-line { background: rgba(255, 159, 10, 0.06); }
+    .line-number {
+      flex: 0 0 42px;
+      text-align: right; padding-right: 0.8rem;
+      color: var(--line-num); font-size: 0.78rem;
+      user-select: none; -webkit-user-select: none;
+      padding-top: 1px;
+    }
+    .line-content {
+      flex: 1; padding-left: 0.8rem;
+      border-left: 1px solid var(--border);
+      white-space: pre-wrap; word-break: break-all;
+      min-height: 1.7em;
+    }
+    .line-content mark {
+      background: var(--highlight);
+      border: 1px solid var(--highlight-border);
+      border-radius: 3px;
+      padding: 0 2px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .line-empty { color: var(--line-num); }
+
+    /* 动作按钮组 */
+    .action-group {
+      display: flex; gap: 0.7rem; flex-wrap: wrap;
+      padding-top: 0.5rem;
+    }
+    .action-group .btn { flex: 1; min-width: 100px; height: 46px; font-size: 0.92rem; }
+
+    .btn-danger { background: #fff; color: var(--danger); border-color: var(--danger); font-weight: 600; }
+    .btn-danger:hover { background: rgba(255,59,48,0.08); }
+
+    .btn-warn { background: #fff; color: var(--warning); border-color: var(--warning); font-weight: 600; }
+    .btn-warn:hover { background: var(--case-soft); }
+
+    .btn-skip { background: #fbfbfd; color: var(--muted); border-color: var(--border); font-weight: 500; }
+    .btn-skip:hover { background: #f2f2f5; color: var(--text); }
+
+    /* 完成提示 */
+    .complete-banner {
+      margin: 1.5rem 0 0;
+      padding: 1.2rem 1.5rem;
+      background: var(--simplify-soft);
+      border: 1px solid #c8efd6;
+      border-radius: var(--radius-md);
+      text-align: center;
+      display: none;
+    }
+    .complete-banner.show { display: block; animation: fadeUp 0.35s ease; }
+    .complete-banner .title { font-size: 1.05rem; font-weight: 600; color: #1d7a3f; margin-bottom: 0.3rem; }
+    .complete-banner .desc { font-size: 0.88rem; color: var(--muted); }
+
+    /* ========== 加载 ========== */
+    .loading-overlay {
+      position: fixed; inset: 0;
+      background: rgba(245,245,247,0.85);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 14px;
+      z-index: 9998;
+    }
+    .loading-overlay.active { display: flex; }
+    .spinner {
+      width: 38px; height: 38px;
+      border: 3px solid var(--primary-soft); border-top-color: var(--primary);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay p { color: var(--muted); font-weight: 500; font-size: 0.95rem; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="hero">
+    <h1>文本处理专家</h1>
+    <p class="subtitle">v2.0 · 关键词匹配 · 逐个预览删除 · 段落级处理</p>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- 1. 上传 -->
+  <div class="card">
+    <div class="card-header"><span class="step-badge">1</span>选择文件</div>
+    <div class="card-body">
+      <div class="upload-area" id="uploadArea" role="button" tabindex="0" aria-label="选择或拖拽 TXT 文件">
+        <div class="upload-icon">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M14 3v5h5"/><path d="M12 17.5v-5.5"/><path d="m9.3 14.3 2.7-2.7 2.7 2.7"/></svg></span>
+        </div>
+        <div class="upload-text">点击或拖拽 TXT 文件到此处</div>
+        <div class="upload-hint">仅支持 .txt 文本文件</div>
+        <div class="upload-filename" id="fileName"></div>
+        <input type="file" id="fileInput" accept=".txt,text/plain" tabindex="-1" aria-hidden="true">
+      </div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-value" id="statSize">—</span>
+          <span class="stat-label">文件大小</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value" id="statCount">—</span>
+          <span class="stat-label">字符总数</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 处理规则 -->
+  <div class="card">
+    <div class="card-header"><span class="step-badge">2</span>处理规则</div>
+    <div class="card-body">
+      <div class="options-row">
+        <div class="switch-container" data-type="case" role="switch" aria-checked="false" tabindex="0">
+          <div class="switch" id="switchCase"></div>
+          <span class="switch-label">大小写敏感</span>
+        </div>
+        <div class="switch-container" data-type="regex" role="switch" aria-checked="false" tabindex="0">
+          <div class="switch" id="switchRegex"></div>
+          <span class="switch-label">正则表达式</span>
+        </div>
+        <div class="switch-container" data-type="simplify" role="switch" aria-checked="false" tabindex="0">
+          <div class="switch" id="switchSimplify"></div>
+          <span class="switch-label">繁体转简体</span>
+        </div>
+      </div>
+
+      <div class="grid-row col-half">
+        <div class="form-group">
+          <label for="inputSearch">查找关键词</label>
+          <input type="text" id="inputSearch" placeholder="输入要查找的关键词…" autocomplete="off">
+          <div class="input-hint" id="regexHint">正则表达式语法错误，请检查</div>
+        </div>
+        <div class="form-group">
+          <label for="inputReplace">替换为（留空即删除关键词）</label>
+          <input type="text" id="inputReplace" placeholder="可选，逐个替换时使用" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="result-detail" id="resultDetail">
+        <div class="result-item"><span>繁体转简体</span><span class="value" id="valConvert">未执行</span></div>
+        <div class="result-item"><span>关键词命中</span><span class="value" id="valMatch">0 处</span></div>
+        <div class="result-item"><span>处理耗时</span><span class="value" id="valTime">0 ms</span></div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-primary" id="btnProcess">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+          开始处理
+        </button>
+        <button class="btn btn-outline" id="btnPreview" style="display:none">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          预览命中
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 预览与逐个处理 -->
+  <div class="card preview-card" id="previewCard">
+    <div class="card-header"><span class="step-badge">3</span>逐个预览与处理</div>
+    <div class="preview-nav">
+      <div class="preview-counter">
+        <span>第</span>
+        <span class="counter-current" id="counterCurrent">0</span>
+        <span class="counter-sep">/</span>
+        <span class="counter-total" id="counterTotal">0</span>
+        <span>处</span>
+        <span class="preview-progress" id="previewProgress">已处理 0</span>
+      </div>
+      <div class="preview-nav-buttons">
+        <button class="nav-btn" id="btnPrev" title="上一个" aria-label="上一个">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
+        </button>
+        <button class="nav-btn" id="btnNext" title="下一个" aria-label="下一个">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="context-area">
+        <div class="context-header" id="contextHeader">关键词上下文（上下各 4 行）</div>
+        <div class="context-body" id="contextBody"></div>
+      </div>
+
+      <div class="action-group">
+        <button class="btn btn-warn" id="btnDeleteWord">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M5 20h6"/><path d="M13 4 8 20"/><path d="m15 15 5 5"/><path d="m20 15-5 5"/></svg></span>
+          <span id="btnDeleteWordLabel">删除关键词</span>
+        </button>
+        <button class="btn btn-danger" id="btnDeletePara">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span>
+          删除整段
+        </button>
+        <button class="btn btn-skip" id="btnSkip">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></span>
+          跳过
+        </button>
+      </div>
+
+      <div class="complete-banner" id="completeBanner">
+        <div class="title">全部命中已处理完毕</div>
+        <div class="desc">点击下方按钮下载处理后的文件</div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-primary" id="btnDownload" style="display:none">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+          下载文件
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <p>正在处理中…</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ===== SVG 片段 ===== */
+  const SVG_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.4 12.3 2.4 2.4 4.8-5"/></svg>';
+  const SVG_ERROR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5"/><path d="M12 16.2v.3"/></svg>';
+
+  /* ===== State ===== */
+  const state = {
+    fileContent: '',
+    workingContent: null,
+    fileName: 'result',
+    options: { caseSensitive: false, isRegex: false, convertSimplify: false },
+    matches: [],
+    currentIdx: 0,
+    processedCount: 0,
+    totalMatches: 0,
+    isComplete: false
+  };
+
+  const CONTEXT_LINES = 4;
+
+  /* ===== DOM ===== */
+  const $ = (id) => document.getElementById(id);
+  const dom = {
+    fileInput: $('fileInput'),     uploadArea: $('uploadArea'),
+    fileName:  $('fileName'),      inputSearch: $('inputSearch'),
+    inputReplace: $('inputReplace'), regexHint: $('regexHint'),
+    btnProcess: $('btnProcess'),   btnPreview: $('btnPreview'),
+    btnDownload: $('btnDownload'),
+    statSize: $('statSize'),       statCount: $('statCount'),
+    loading: $('loading'),         toast: $('toast'),
+    resultDetail: $('resultDetail'),
+    valConvert: $('valConvert'),   valMatch: $('valMatch'),   valTime: $('valTime'),
+    previewCard: $('previewCard'),
+    counterCurrent: $('counterCurrent'), counterTotal: $('counterTotal'),
+    previewProgress: $('previewProgress'),
+    btnPrev: $('btnPrev'),         btnNext: $('btnNext'),
+    contextBody: $('contextBody'), contextHeader: $('contextHeader'),
+    btnDeleteWord: $('btnDeleteWord'), btnDeleteWordLabel: $('btnDeleteWordLabel'),
+    btnDeletePara: $('btnDeletePara'), btnSkip: $('btnSkip'),
+    completeBanner: $('completeBanner')
+  };
+
+  const chips = {
+    caseSensitive: { chip: document.querySelector('[data-type="case"]'),     sw: $('switchCase') },
+    isRegex:       { chip: document.querySelector('[data-type="regex"]'),    sw: $('switchRegex') },
+    convertSimplify:{ chip: document.querySelector('[data-type="simplify"]'), sw: $('switchSimplify') }
+  };
+
+  /* ===== Init ===== */
+  (function init() {
+    bindEvents();
+    if (typeof OpenCC === 'undefined') {
+      chips.convertSimplify.chip.classList.add('disabled');
+      chips.convertSimplify.chip.title = '网络问题，繁简转换暂不可用';
+    }
+  })();
+
+  function bindEvents() {
+    /* 文件 */
+    dom.fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) loadFile(e.target.files[0]);
+      e.target.value = '';
+    });
+    dom.uploadArea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dom.fileInput.click(); }
+    });
+    dom.uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); dom.uploadArea.classList.add('dragover'); });
+    dom.uploadArea.addEventListener('dragleave', () => dom.uploadArea.classList.remove('dragover'));
+    dom.uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dom.uploadArea.classList.remove('dragover');
+      const f = e.dataTransfer.files[0];
+      if (f && f.name.toLowerCase().endsWith('.txt')) loadFile(f);
+      else showToast('仅支持 .txt 格式文件', 'error');
+    });
+
+    /* 开关 */
+    Object.entries(chips).forEach(([key, { chip, sw }]) => {
+      const handler = () => {
+        state.options[key] = !state.options[key];
+        sw.classList.toggle('active', state.options[key]);
+        chip.classList.toggle('on', state.options[key]);
+        chip.setAttribute('aria-checked', state.options[key]);
+        resetResult();
+      };
+      chip.addEventListener('click', handler);
+      chip.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
+      });
+    });
+
+    /* 输入 */
+    dom.inputSearch.addEventListener('input', () => { resetResult(); validateRegex(); });
+    dom.inputReplace.addEventListener('input', updateDeleteWordLabel);
+
+    /* 按钮 */
+    dom.btnProcess.addEventListener('click', processAction);
+    dom.btnPreview.addEventListener('click', startPreview);
+    dom.btnPrev.addEventListener('click', () => navigateMatch(-1));
+    dom.btnNext.addEventListener('click', () => navigateMatch(1));
+    dom.btnDeleteWord.addEventListener('click', deleteWord);
+    dom.btnDeletePara.addEventListener('click', deleteParagraph);
+    dom.btnSkip.addEventListener('click', skipMatch);
+    dom.btnDownload.addEventListener('click', downloadAction);
+  }
+
+  /* ===== 文件 ===== */
+  function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      state.fileContent = e.target.result.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const dot = file.name.lastIndexOf('.');
+      state.fileName = dot > 0 ? file.name.substring(0, dot) : file.name;
+      dom.uploadArea.classList.add('active');
+      dom.fileName.style.display = 'block';
+      dom.fileName.textContent = '已选择：' + file.name;
+      dom.fileName.title = file.name;
+      dom.statSize.textContent = formatSize(file.size);
+      dom.statCount.textContent = state.fileContent.length.toLocaleString();
+      resetResult();
+    };
+    reader.onerror = () => showToast('文件读取失败，请重试', 'error');
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function formatSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(2) + ' MB';
+  }
+
+  /* ===== 正则实时校验 ===== */
+  function validateRegex() {
+    if (!state.options.isRegex || !dom.inputSearch.value) {
+      dom.inputSearch.classList.remove('input-error');
+      dom.regexHint.classList.remove('visible');
+      return true;
+    }
+    try {
+      new RegExp(dom.inputSearch.value);
+      dom.inputSearch.classList.remove('input-error');
+      dom.regexHint.classList.remove('visible');
+      return true;
+    } catch {
+      dom.inputSearch.classList.add('input-error');
+      dom.regexHint.classList.add('visible');
+      return false;
+    }
+  }
+
+  /* ===== 构建正则 ===== */
+  function buildRegex(text) {
+    let flags = 'g';
+    if (!state.options.caseSensitive) flags += 'i';
+    const pattern = state.options.isRegex
+      ? text
+      : text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(pattern, flags);
+  }
+
+  /* ===== 全文匹配，返回所有命中位置 ===== */
+  function findAllMatches(content, regex) {
+    const matches = [];
+    let m;
+    const rx = new RegExp(regex.source, regex.flags);
+    while ((m = rx.exec(content)) !== null) {
+      if (m[0].length === 0) { rx.lastIndex++; continue; }
+      matches.push({ start: m.index, end: m.index + m[0].length, text: m[0] });
+    }
+    return matches;
+  }
+
+  /* ===== 开始处理：匹配统计 ===== */
+  function processAction() {
+    if (!state.fileContent) { showToast('请先上传一个 TXT 文件', 'error'); return; }
+    if (!dom.inputSearch.value && !state.options.convertSimplify) {
+      showToast('请输入查找关键词，或勾选「繁体转简体」', 'error'); return;
+    }
+    if (state.options.isRegex && !validateRegex()) return;
+
+    dom.loading.classList.add('active');
+    dom.btnProcess.disabled = true;
+
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        try {
+          const t0 = performance.now();
+          let content = state.fileContent;
+          let convertDone = false;
+
+          if (state.options.convertSimplify && typeof OpenCC !== 'undefined') {
+            const tw2cn = OpenCC.Converter({ from: 'tw', to: 'cn' });
+            const hk2cn = OpenCC.Converter({ from: 'hk', to: 'cn' });
+            content = hk2cn(tw2cn(content));
+            convertDone = true;
+          }
+
+          state.workingContent = content;
+
+          if (dom.inputSearch.value) {
+            const rx = buildRegex(dom.inputSearch.value);
+            state.matches = findAllMatches(content, rx);
+          } else {
+            state.matches = [];
+          }
+
+          state.totalMatches = state.matches.length;
+          state.currentIdx = 0;
+          state.processedCount = 0;
+          state.isComplete = false;
+
+          const elapsed = performance.now() - t0;
+
+          dom.valConvert.textContent = convertDone ? '已完成' : '未勾选';
+          dom.valMatch.textContent = state.totalMatches.toLocaleString() + ' 处';
+          dom.valTime.textContent = elapsed.toFixed(1) + ' ms';
+          dom.resultDetail.classList.add('show');
+
+          if (state.totalMatches > 0) {
+            dom.btnPreview.style.display = 'inline-flex';
+            dom.btnPreview.classList.add('reveal');
+            showToast('找到 ' + state.totalMatches + ' 处命中，点击预览开始处理', 'success');
+          } else {
+            dom.btnPreview.style.display = 'none';
+            showToast('未找到匹配内容', 'error');
+          }
+        } catch (err) {
+          showToast('处理出错：' + err.message, 'error');
+        } finally {
+          dom.loading.classList.remove('active');
+          dom.btnProcess.disabled = false;
+        }
+      }, 30);
+    });
+  }
+
+  /* ===== 更新「删除关键词」按钮标签 ===== */
+  function updateDeleteWordLabel() {
+    const replaceVal = dom.inputReplace.value;
+    dom.btnDeleteWordLabel.textContent = replaceVal ? '替换关键词' : '删除关键词';
+  }
+
+  /* ===== 进入预览模式 ===== */
+  function startPreview() {
+    if (state.matches.length === 0) { showToast('没有可预览的命中', 'error'); return; }
+    state.currentIdx = 0;
+    state.processedCount = 0;
+    state.isComplete = false;
+    dom.previewCard.classList.add('show');
+    dom.completeBanner.classList.remove('show');
+    dom.btnDownload.style.display = 'none';
+    /* 重新启用操作按钮（上一次处理完毕后按钮会被禁用）*/
+    dom.btnDeleteWord.disabled = false;
+    dom.btnDeletePara.disabled = false;
+    dom.btnSkip.disabled = false;
+    renderPreview();
+    dom.previewCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ===== 渲染当前命中的预览 ===== */
+  function renderPreview() {
+    if (state.matches.length === 0) {
+      checkComplete();
+      return;
+    }
+    if (state.currentIdx >= state.matches.length) {
+      state.currentIdx = state.matches.length - 1;
+    }
+    if (state.currentIdx < 0) state.currentIdx = 0;
+
+    const m = state.matches[state.currentIdx];
+    renderContext(m);
+    updateCounter();
+    updateNavButtons();
+    updateDeleteWordLabel();
+  }
+
+  /* ===== 渲染上下文 ===== */
+  function renderContext(match) {
+    const text = state.workingContent;
+    /* 计算行信息 */
+    const lines = [];
+    let lineStart = 0;
+    for (let i = 0; i <= text.length; i++) {
+      if (i === text.length || text[i] === '\n') {
+        lines.push({ start: lineStart, end: i, text: text.substring(lineStart, i) });
+        lineStart = i + 1;
+      }
+    }
+
+    /* 找到命中所在行 */
+    let hitLineIdx = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (match.start >= lines[i].start && match.start < lines[i].end + 1) {
+        hitLineIdx = i;
+        break;
+      }
+    }
+
+    const startLine = Math.max(0, hitLineIdx - CONTEXT_LINES);
+    const endLine = Math.min(lines.length - 1, hitLineIdx + CONTEXT_LINES);
+
+    dom.contextBody.innerHTML = '';
+
+    for (let i = startLine; i <= endLine; i++) {
+      const line = lines[i];
+      const lineDiv = document.createElement('div');
+      lineDiv.className = 'context-line';
+      if (i === hitLineIdx) lineDiv.classList.add('hit-line');
+
+      const numSpan = document.createElement('span');
+      numSpan.className = 'line-number';
+      numSpan.textContent = (i + 1);
+
+      const contentSpan = document.createElement('span');
+      contentSpan.className = 'line-content';
+
+      if (line.text.length === 0) {
+        contentSpan.classList.add('line-empty');
+        contentSpan.textContent = '（空行）';
+      } else {
+        contentSpan.innerHTML = buildLineHTML(line, match);
+      }
+
+      lineDiv.appendChild(numSpan);
+      lineDiv.appendChild(contentSpan);
+      dom.contextBody.appendChild(lineDiv);
+    }
+
+    /* 滚动到命中行 */
+    const hitEl = dom.contextBody.querySelector('.hit-line');
+    if (hitEl) {
+      hitEl.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }
+  }
+
+  /* 构建单行 HTML，高亮命中部分 */
+  function buildLineHTML(line, match) {
+    const matchStartInLine = Math.max(0, match.start - line.start);
+    const matchEndInLine = Math.min(line.text.length, match.end - line.start);
+
+    if (matchStartInLine >= line.text.length || matchEndInLine <= 0) {
+      return escapeHTML(line.text);
+    }
+
+    const before = line.text.substring(0, matchStartInLine);
+    const matched = line.text.substring(matchStartInLine, matchEndInLine);
+    const after = line.text.substring(matchEndInLine);
+
+    return escapeHTML(before) + '<mark>' + escapeHTML(matched) + '</mark>' + escapeHTML(after);
+  }
+
+  function escapeHTML(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  /* ===== 更新计数器 ===== */
+  function updateCounter() {
+    dom.counterCurrent.textContent = (state.currentIdx + 1);
+    dom.counterTotal.textContent = state.matches.length;
+    dom.previewProgress.textContent = '已处理 ' + state.processedCount;
+  }
+
+  /* ===== 更新导航按钮状态 ===== */
+  function updateNavButtons() {
+    dom.btnPrev.disabled = state.currentIdx <= 0;
+    dom.btnNext.disabled = state.currentIdx >= state.matches.length - 1;
+  }
+
+  /* ===== 导航：上一个/下一个 ===== */
+  function navigateMatch(dir) {
+    const newIdx = state.currentIdx + dir;
+    if (newIdx < 0 || newIdx >= state.matches.length) return;
+    state.currentIdx = newIdx;
+    renderPreview();
+  }
+
+  /* ===== 重新匹配工作文本 ===== */
+  function refreshMatches() {
+    if (!dom.inputSearch.value) { state.matches = []; return; }
+    const rx = buildRegex(dom.inputSearch.value);
+    state.matches = findAllMatches(state.workingContent, rx);
+  }
+
+  /* ===== 删除/替换关键词 ===== */
+  function deleteWord() {
+    if (state.matches.length === 0) return;
+    const m = state.matches[state.currentIdx];
+    const replacement = dom.inputReplace.value;
+
+    state.workingContent =
+      state.workingContent.substring(0, m.start) +
+      replacement +
+      state.workingContent.substring(m.end);
+
+    state.processedCount++;
+    refreshMatches();
+
+    if (state.currentIdx >= state.matches.length) {
+      state.currentIdx = state.matches.length - 1;
+    }
+
+    if (state.matches.length === 0) {
+      checkComplete();
+    } else {
+      renderPreview();
+    }
+  }
+
+  /* ===== 查找命中所在段落范围 =====
+   * 段落分隔规则（业界标准 text.split(/\n\s*\n/) 的变体）：
+   * 1. 若文本中存在空行（\n 后跟空白再跟 \n），以空行作为段落边界
+   * 2. 若全文无空行（如诗歌、日志等逐行文本），退化为以单个换行作为段落边界
+   * 这样无论文本格式如何，"删除整段"都只删命中所在的那一段，不会误删全文。
+   */
+  function findParagraphRange(content, matchStart, matchEnd) {
+    /* 检测文本是否包含空行分隔符 */
+    const hasBlankLines = /\n[ \t]*\n/.test(content);
+    /* 分隔符正则：有空行用 \n[ \t]*\n，无空行退化为 \n */
+    const sepSource = hasBlankLines ? '\\n[ \\t]*\\n' : '\\n';
+
+    /* —— 向前查找段落起始：取 matchStart 之前最后一个分隔符之后的位置 —— */
+    let paraStart = 0;
+    const before = content.substring(0, matchStart);
+    const sepRe = new RegExp(sepSource, 'g');
+    let lastSep = null;
+    let m;
+    while ((m = sepRe.exec(before)) !== null) {
+      lastSep = m;
+    }
+    if (lastSep) {
+      paraStart = lastSep.index + lastSep[0].length;
+    }
+    /* 修剪段落开头的换行符 */
+    while (paraStart < content.length && content[paraStart] === '\n') paraStart++;
+
+    /* —— 向后查找段落结束：取 matchEnd 之后第一个分隔符之前的位置 —— */
+    let paraEnd = content.length;
+    const after = content.substring(matchEnd);
+    const firstSep = new RegExp(sepSource).exec(after);
+    if (firstSep) {
+      paraEnd = matchEnd + firstSep.index;
+    }
+    /* 修剪段落尾部的换行符 */
+    while (paraEnd > paraStart && content[paraEnd - 1] === '\n') paraEnd--;
+
+    return { paraStart, paraEnd };
+  }
+
+  /* ===== 删除整段 ===== */
+  function deleteParagraph() {
+    if (state.matches.length === 0) return;
+    const m = state.matches[state.currentIdx];
+    const range = findParagraphRange(state.workingContent, m.start, m.end);
+
+    /* 计算要删除的范围，确保不残留空行 */
+    let deleteStart = range.paraStart;
+    let deleteEnd = range.paraEnd;
+
+    /* 向后扩展：吃掉段落后的空行直到下一段开始 */
+    while (deleteEnd < state.workingContent.length && state.workingContent[deleteEnd] === '\n') {
+      deleteEnd++;
+    }
+
+    /* 如果后面没有内容了（删的是最后一段），向前吃掉前面的空行 */
+    if (deleteEnd >= state.workingContent.length) {
+      while (deleteStart > 0 && state.workingContent[deleteStart - 1] === '\n') {
+        deleteStart--;
+      }
+    }
+
+    state.workingContent =
+      state.workingContent.substring(0, deleteStart) +
+      state.workingContent.substring(deleteEnd);
+
+    state.processedCount++;
+    refreshMatches();
+
+    if (state.currentIdx >= state.matches.length) {
+      state.currentIdx = state.matches.length - 1;
+    }
+
+    if (state.matches.length === 0) {
+      checkComplete();
+    } else {
+      renderPreview();
+    }
+  }
+
+  /* ===== 跳过 ===== */
+  function skipMatch() {
+    if (state.matches.length === 0) return;
+    state.processedCount++;
+    state.currentIdx++;
+
+    if (state.currentIdx >= state.matches.length) {
+      checkComplete();
+    } else {
+      renderPreview();
+    }
+  }
+
+  /* ===== 检查是否全部处理完毕 ===== */
+  function checkComplete() {
+    if (state.matches.length === 0 || state.currentIdx >= state.matches.length) {
+      state.isComplete = true;
+      dom.contextBody.innerHTML = '';
+      dom.contextHeader.textContent = '处理完毕';
+      dom.counterCurrent.textContent = '0';
+      dom.counterTotal.textContent = '0';
+      dom.previewProgress.textContent = '已处理 ' + state.processedCount;
+      dom.btnPrev.disabled = true;
+      dom.btnNext.disabled = true;
+      dom.btnDeleteWord.disabled = true;
+      dom.btnDeletePara.disabled = true;
+      dom.btnSkip.disabled = true;
+      dom.completeBanner.classList.add('show');
+      dom.btnDownload.style.display = 'inline-flex';
+      dom.btnDownload.classList.add('reveal');
+      showToast('全部处理完毕，可下载文件', 'success');
+    }
+  }
+
+  /* ===== 下载 ===== */
+  async function downloadAction() {
+    /* 用 null 区分"未处理"和"内容为空"，空字符串也允许下载 */
+    if (state.workingContent === null) {
+      showToast('请先点击「开始处理」', 'error');
+      return;
+    }
+    const blob = new Blob([state.workingContent], { type: 'text/plain;charset=utf-8' });
+    const suggestedName = state.fileName + '_processed.txt';
+
+    /* 优先使用 File System Access API（需安全上下文：HTTPS 或 localhost）*/
+    if (window.isSecureContext && typeof window.showSaveFilePicker === 'function') {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: suggestedName,
+          types: [{ description: '文本文件', accept: { 'text/plain': ['.txt'] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        showToast('已保存到所选位置', 'success');
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return;  /* 用户取消，不做任何事 */
+        /* 其他错误（如 SecurityError）则回退到普通下载 */
+      }
+    }
+
+    /* 回退：普通下载 */
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = suggestedName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    /* 延迟释放，确保下载已触发 */
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('文件已下载（浏览器默认目录）', 'success');
+  }
+
+  /* ===== UI 辅助 ===== */
+  function resetResult() {
+    state.matches = [];
+    state.workingContent = null;
+    state.currentIdx = 0;
+    state.processedCount = 0;
+    state.isComplete = false;
+    dom.resultDetail.classList.remove('show');
+    dom.btnPreview.style.display = 'none';
+    dom.btnPreview.classList.remove('reveal');
+    dom.previewCard.classList.remove('show');
+    dom.completeBanner.classList.remove('show');
+    dom.btnDownload.style.display = 'none';
+    dom.btnDeleteWord.disabled = false;
+    dom.btnDeletePara.disabled = false;
+    dom.btnSkip.disabled = false;
+  }
+
+  let toastTimer = null;
+  function showToast(msg, type) {
+    dom.toast.textContent = '';
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'icon';
+    iconSpan.innerHTML = type === 'error' ? SVG_ERROR : SVG_CHECK;
+    const textSpan = document.createElement('span');
+    textSpan.textContent = msg;
+    dom.toast.appendChild(iconSpan);
+    dom.toast.appendChild(textSpan);
+    dom.toast.classList.toggle('error', type === 'error');
+    dom.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => dom.toast.classList.remove('show'), 3000);
+  }
+})();
+</script>
+</body>
+</html>
