@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>文本处理专家 v2.1 (深度优化版)</title>
+  <title>文本处理专家 v2.1 (完整增强版)</title>
   <style>
     :root {
       --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --muted: #86868b; --border: #e8e8ed;
@@ -155,7 +155,7 @@
 <div class="container">
   <div class="hero">
     <h1>文本处理专家</h1>
-    <p class="subtitle">v2.1 · 安全正则 · 撤销支持 · 智能编码识别</p>
+    <p class="subtitle">v2.1 · 一键批量处理 · 安全正则 · 智能编码识别</p>
   </div>
 
   <!-- A11y: 屏幕阅读器播报区 -->
@@ -210,7 +210,7 @@
         </div>
         <div class="form-group">
           <label for="inputReplace">替换为（留空即删除）</label>
-          <input type="text" id="inputReplace" placeholder="可选，逐个替换时使用" autocomplete="off">
+          <input type="text" id="inputReplace" placeholder="可选，一键替换/逐个替换时使用" autocomplete="off">
         </div>
       </div>
 
@@ -220,9 +220,19 @@
         <div class="result-item"><span>处理耗时</span><span class="value" id="valTime">0 ms</span></div>
       </div>
 
+      <!-- 操作按钮区 -->
       <div class="action-buttons">
         <button class="btn btn-primary" id="btnProcess">开始处理</button>
-        <button class="btn btn-outline" id="btnPreview" style="display:none">预览命中</button>
+        <button class="btn btn-outline" id="btnPreview" style="display:none">逐个预览</button>
+        <!-- 新增：一键全部处理按钮 -->
+        <button class="btn btn-danger" id="btnReplaceAll" style="display:none">
+          <span class="icon">⚡</span> 一键全部删除/替换
+        </button>
+      </div>
+      
+      <!-- 下载按钮区 -->
+      <div class="action-buttons" style="margin-top: 1rem;">
+        <button class="btn btn-primary" id="btnDownload" style="display:none">下载处理后文件</button>
       </div>
     </div>
   </div>
@@ -254,15 +264,12 @@
       </div>
       
       <div class="action-group" style="margin-top: 0.5rem;">
-        <button class="btn btn-danger" id="btnDeleteAll" style="flex: 1;">全部删除/替换</button>
+        <button class="btn btn-danger" id="btnDeleteAll" style="flex: 1;">全部删除/替换 (当前预览列表)</button>
       </div>
 
       <div class="complete-banner" id="completeBanner">
         <div class="title">全部命中已处理完毕</div>
-      </div>
-
-      <div class="action-buttons">
-        <button class="btn btn-primary" id="btnDownload" style="display:none">下载文件</button>
+        <div class="desc">请返回上方或点击下方按钮下载文件</div>
       </div>
     </div>
   </div>
@@ -339,7 +346,8 @@
     fileInput: $('fileInput'), uploadArea: $('uploadArea'), btnClear: $('btnClear'),
     fileName: $('fileName'), inputSearch: $('inputSearch'), inputReplace: $('inputReplace'),
     regexHint: $('regexHint'), btnProcess: $('btnProcess'), btnPreview: $('btnPreview'),
-    btnDownload: $('btnDownload'), statSize: $('statSize'), statCount: $('statCount'),
+    btnReplaceAll: $('btnReplaceAll'), btnDownload: $('btnDownload'),
+    statSize: $('statSize'), statCount: $('statCount'),
     loading: $('loading'), toast: $('toast'), a11yLive: $('a11yLive'), resultDetail: $('resultDetail'),
     valConvert: $('valConvert'), valMatch: $('valMatch'), valTime: $('valTime'),
     previewCard: $('previewCard'), counterCurrent: $('counterCurrent'), counterTotal: $('counterTotal'),
@@ -399,6 +407,9 @@
     /* 按钮 */
     dom.btnProcess.addEventListener('click', processAction);
     dom.btnPreview.addEventListener('click', startPreview);
+    dom.btnReplaceAll.addEventListener('click', replaceAllAction); // 一键处理
+    dom.btnDownload.addEventListener('click', downloadAction);
+    
     dom.btnPrev.addEventListener('click', () => navigateMatch(-1));
     dom.btnNext.addEventListener('click', () => navigateMatch(1));
     dom.btnDeleteWord.addEventListener('click', deleteWord);
@@ -406,7 +417,6 @@
     dom.btnSkip.addEventListener('click', skipMatch);
     dom.btnUndo.addEventListener('click', undoAction);
     dom.btnDeleteAll.addEventListener('click', deleteAll);
-    dom.btnDownload.addEventListener('click', downloadAction);
 
     /* 键盘快捷键 */
     document.addEventListener('keydown', handleKeyboard);
@@ -418,8 +428,6 @@
       showToast(`文件过大，最大支持 ${formatSize(CONFIG.MAX_FILE_SIZE)}`, 'error');
       return;
     }
-    
-    // 尝试多种编码解码
     tryDecode(file, ['utf-8', 'gbk', 'gb18030'], 0);
   }
 
@@ -539,10 +547,13 @@
 
         if (state.totalMatches > 0) {
           dom.btnPreview.style.display = 'inline-flex'; dom.btnPreview.classList.add('reveal');
+          dom.btnReplaceAll.style.display = 'inline-flex'; dom.btnReplaceAll.classList.add('reveal'); // 显示一键按钮
           showToast('找到 ' + state.totalMatches + ' 处命中', 'success');
           announce(`处理完成，找到 ${state.totalMatches} 处命中`);
         } else {
-          dom.btnPreview.style.display = 'none'; showToast('未找到匹配内容', 'error');
+          dom.btnPreview.style.display = 'none'; 
+          dom.btnReplaceAll.style.display = 'none';
+          showToast('未找到匹配内容', 'error');
         }
       } catch (err) {
         showToast('处理出错：' + err.message, 'error');
@@ -727,6 +738,55 @@
     checkComplete();
   }
 
+  /* ===== 一键全部处理 (跳过预览) ===== */
+  function replaceAllAction() {
+    if (!state.workingContent || state.matches.length === 0) return;
+    
+    const actionText = dom.inputReplace.value ? '替换' : '删除';
+    if (!confirm(`确定要一键${actionText}全部 ${state.matches.length} 处命中吗？\n此操作将直接修改全文，无法撤销。`)) return;
+    
+    dom.loading.classList.add('active');
+    dom.btnReplaceAll.disabled = true;
+    
+    // 使用 setTimeout 让 loading 动画有机会渲染出来
+    setTimeout(() => {
+      try {
+        const replacement = dom.inputReplace.value;
+        
+        // 核心算法：从后往前替换，防止前面的替换导致后面的索引偏移
+        const sortedMatches = [...state.matches].sort((a, b) => b.start - a.start);
+        sortedMatches.forEach(m => {
+          state.workingContent = state.workingContent.substring(0, m.start) + replacement + state.workingContent.substring(m.end);
+        });
+        
+        state.processedCount = state.totalMatches;
+        state.matches = [];
+        LineCache.clear(); // 内容改变，清空缓存
+        
+        showToast(`成功${actionText} ${state.processedCount} 处，请下载文件`, 'success');
+        announce(`一键处理完成，共处理 ${state.processedCount} 处`);
+        
+        // 隐藏处理按钮，显示下载按钮
+        dom.btnReplaceAll.style.display = 'none';
+        dom.btnPreview.style.display = 'none';
+        dom.btnDownload.style.display = 'inline-flex';
+        dom.btnDownload.classList.add('reveal');
+        
+        // 更新统计面板
+        dom.valMatch.textContent = `0 处 (已全部${actionText})`;
+        
+        // 自动滚动到下载按钮
+        dom.btnDownload.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+      } catch (e) {
+        showToast('处理出错：' + e.message, 'error');
+      } finally {
+        dom.loading.classList.remove('active');
+        dom.btnReplaceAll.disabled = false;
+      }
+    }, 50);
+  }
+
   function undoAction() {
     const prev = History.undo();
     if (!prev) { showToast('没有可撤销的操作', 'error'); return; }
@@ -749,7 +809,12 @@
     dom.btnPrev.disabled = true; dom.btnNext.disabled = true;
     dom.btnDeleteWord.disabled = true; dom.btnDeletePara.disabled = true; dom.btnSkip.disabled = true; dom.btnDeleteAll.disabled = true;
     dom.completeBanner.classList.add('show');
-    dom.btnDownload.style.display = 'inline-flex'; dom.btnDownload.classList.add('reveal');
+    
+    // 显示下载按钮并滚动过去
+    dom.btnDownload.style.display = 'inline-flex'; 
+    dom.btnDownload.classList.add('reveal');
+    dom.btnDownload.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
     showToast('全部处理完毕，可下载文件', 'success');
     announce('全部处理完毕');
     dom.btnDownload.focus(); // A11y 焦点管理
@@ -801,8 +866,12 @@
 
   function resetResult() {
     state.matches = []; state.workingContent = null; state.currentIdx = 0; state.processedCount = 0; state.isComplete = false;
-    dom.resultDetail.classList.remove('show'); dom.btnPreview.style.display = 'none';
-    dom.previewCard.classList.remove('show'); dom.completeBanner.classList.remove('show'); dom.btnDownload.style.display = 'none';
+    dom.resultDetail.classList.remove('show'); 
+    dom.btnPreview.style.display = 'none';
+    dom.btnReplaceAll.style.display = 'none'; // 重置时隐藏一键按钮
+    dom.btnDownload.style.display = 'none';   // 重置时隐藏下载按钮
+    dom.previewCard.classList.remove('show'); 
+    dom.completeBanner.classList.remove('show'); 
     History.clear();
   }
 
