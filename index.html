@@ -438,9 +438,20 @@
     }
     const reader = new FileReader();
     reader.onload = (e) => {
+      const buffer = e.target.result;
       try {
-        const decoder = new TextDecoder(encodings[index], { fatal: true });
-        let text = decoder.decode(e.target.result);
+        // 尝试以非严格模式解码，允许存在部分坏字符
+        const decoder = new TextDecoder(encodings[index], { fatal: false });
+        let text = decoder.decode(buffer);
+        
+        // 优化：如果是 UTF-8 解码出了大量替换符，判定为编码错误并降级
+        if (encodings[index] === 'utf-8') {
+          const replacementCount = (text.match(/\uFFFD/g) || []).length;
+          if (replacementCount > 0 && replacementCount / text.length > 0.001) {
+            throw new Error('Possible UTF-8 decoding error');
+          }
+        }
+        
         state.fileContent = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         
         const dot = file.name.lastIndexOf('.');
@@ -491,6 +502,14 @@
     return new RegExp(pattern, flags);
   }
 
+  // 构建不带 g 标志的测试用正则，避免 lastIndex 状态问题
+  function buildTestRegex(text) {
+    let flags = '';
+    if (!state.options.caseSensitive) flags += 'i';
+    const pattern = state.options.isRegex ? text : text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(pattern, flags);
+  }
+
   /* ===== 核心：安全的正则匹配 (防 ReDoS) ===== */
   function findAllMatches(content, regex) {
     const matches = [];
@@ -520,10 +539,11 @@
         let content = state.fileContent;
         let convertDone = false;
 
+        // 优化 OpenCC 转换链，twp 包含台湾惯用语转换
         if (state.options.convertSimplify && typeof OpenCC !== 'undefined') {
-          const tw2cn = OpenCC.Converter({ from: 'tw', to: 'cn' });
-          const hk2cn = OpenCC.Converter({ from: 'hk', to: 'cn' });
-          content = hk2cn(tw2cn(content));
+          const twp2cn = OpenCC.Converter({ from: 'twp', to: 'cn' });
+          const hk2cn  = OpenCC.Converter({ from: 'hk',  to: 'cn' });
+          content = hk2cn(twp2cn(content));
           convertDone = true;
         }
 
@@ -547,7 +567,7 @@
 
         if (state.totalMatches > 0) {
           dom.btnPreview.style.display = 'inline-flex'; dom.btnPreview.classList.add('reveal');
-          dom.btnReplaceAll.style.display = 'inline-flex'; dom.btnReplaceAll.classList.add('reveal'); // 显示一键按钮
+          dom.btnReplaceAll.style.display = 'inline-flex'; dom.btnReplaceAll.classList.add('reveal'); 
           showToast('找到 ' + state.totalMatches + ' 处命中', 'success');
           announce(`处理完成，找到 ${state.totalMatches} 处命中`);
         } else {
@@ -569,10 +589,19 @@
     state.currentIdx = 0; state.processedCount = 0; state.isComplete = false;
     dom.previewCard.classList.add('show'); dom.completeBanner.classList.remove('show');
     dom.btnDownload.style.display = 'none';
-    dom.btnDeleteWord.disabled = false; dom.btnDeletePara.disabled = false; dom.btnSkip.disabled = false; dom.btnDeleteAll.disabled = false;
+    
+    // 隐藏顶部按钮，避免预览模式与全局模式冲突
+    dom.btnReplaceAll.style.display = 'none';
+    dom.btnPreview.style.display = 'none';
+    
+    dom.btnDeleteWord.disabled = false; 
+    dom.btnDeletePara.disabled = false; 
+    dom.btnSkip.disabled = false; 
+    dom.btnDeleteAll.disabled = false;
+    
     renderPreview();
     dom.previewCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    dom.previewCard.focus(); // A11y 焦点管理
+    dom.previewCard.focus(); 
   }
 
   function renderPreview() {
@@ -585,7 +614,7 @@
   }
 
   function renderContext(match) {
-    const lines = LineCache.get(state.workingContent); // 使用缓存
+    const lines = LineCache.get(state.workingContent); 
     let hitLineIdx = 0;
     for (let i = 0; i < lines.length; i++) {
       if (match.start >= lines[i].start && match.start <= lines[i].end) { hitLineIdx = i; break; }
@@ -623,11 +652,11 @@
     return escapeHTML(before) + '<mark>' + escapeHTML(matched) + '</mark>' + escapeHTML(after);
   }
 
-  // 安全的 XSS 防护
+  // 性能优化：使用正则替换替代 DOM 操作
+  const ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  const ESCAPE_RE = /[&<>"']/g;
   function escapeHTML(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    return str.replace(ESCAPE_RE, ch => ESCAPE_MAP[ch]);
   }
 
   function updateCounter() {
@@ -652,16 +681,28 @@
     if (!dom.inputSearch.value) { state.matches = []; return; }
     const rx = buildRegex(dom.inputSearch.value);
     state.matches = findAllMatches(state.workingContent, rx);
-    LineCache.clear(); // 内容已变，清空缓存
+    LineCache.clear(); 
   }
 
   function deleteWord() {
     if (state.matches.length === 0) return;
+    const replacement = dom.inputReplace.value;
+    
+    // 修复死循环：检测替换文本是否会引入新匹配
+    if (replacement) {
+      const testRx = buildTestRegex(dom.inputSearch.value);
+      if (testRx.test(replacement)) {
+        showToast('替换内容包含关键词，将产生新匹配，已中止', 'error');
+        return;
+      }
+    }
+
     History.save('deleteWord');
     const m = state.matches[state.currentIdx];
-    const replacement = dom.inputReplace.value;
+    
     state.workingContent = state.workingContent.substring(0, m.start) + replacement + state.workingContent.substring(m.end);
     state.processedCount++;
+    LineCache.clear();
     
     try { refreshMatches(); } catch(e) { showToast(e.message, 'error'); state.matches = []; }
     
@@ -703,6 +744,7 @@
     }
     state.workingContent = state.workingContent.substring(0, deleteStart) + state.workingContent.substring(deleteEnd);
     state.processedCount++;
+    LineCache.clear();
     
     try { refreshMatches(); } catch(e) { showToast(e.message, 'error'); state.matches = []; }
     
@@ -720,71 +762,71 @@
     else renderPreview();
   }
 
-  function deleteAll() {
+  /* ===== 提取公共批量替换逻辑 ===== */
+  function batchReplace({ saveHistory }) {
     if (state.matches.length === 0) return;
-    if (!confirm(`确定要批量处理全部 ${state.matches.length} 处命中吗？`)) return;
     
-    History.save('deleteAll');
     const replacement = dom.inputReplace.value;
-    
-    // 从后往前替换，防止索引偏移
-    const sortedMatches = [...state.matches].sort((a, b) => b.start - a.start);
-    sortedMatches.forEach(m => {
-      state.workingContent = state.workingContent.substring(0, m.start) + replacement + state.workingContent.substring(m.end);
-    });
-    
-    state.processedCount += sortedMatches.length;
-    state.matches = [];
-    checkComplete();
-  }
+    const actionText = replacement ? '替换' : '删除';
 
-  /* ===== 一键全部处理 (跳过预览) ===== */
-  function replaceAllAction() {
-    if (!state.workingContent || state.matches.length === 0) return;
-    
-    const actionText = dom.inputReplace.value ? '替换' : '删除';
-    if (!confirm(`确定要一键${actionText}全部 ${state.matches.length} 处命中吗？\n此操作将直接修改全文，无法撤销。`)) return;
-    
+    // 修复死循环：检测替换文本是否会引入新匹配
+    if (replacement) {
+      const testRx = buildTestRegex(dom.inputSearch.value);
+      if (testRx.test(replacement)) {
+        showToast('替换内容包含关键词，将产生新匹配，已中止', 'error');
+        return;
+      }
+    }
+
+    if (!confirm(`确定要批量${actionText}全部 ${state.matches.length} 处命中吗？` +
+        (saveHistory ? '' : '\n此操作将直接修改全文，无法撤销。'))) return;
+
+    if (saveHistory) History.save('batchReplace');
+
     dom.loading.classList.add('active');
-    dom.btnReplaceAll.disabled = true;
-    
+
     // 使用 setTimeout 让 loading 动画有机会渲染出来
     setTimeout(() => {
       try {
-        const replacement = dom.inputReplace.value;
-        
-        // 核心算法：从后往前替换，防止前面的替换导致后面的索引偏移
-        const sortedMatches = [...state.matches].sort((a, b) => b.start - a.start);
-        sortedMatches.forEach(m => {
-          state.workingContent = state.workingContent.substring(0, m.start) + replacement + state.workingContent.substring(m.end);
+        const sorted = [...state.matches].sort((a, b) => b.start - a.start);
+        sorted.forEach(m => {
+          state.workingContent =
+            state.workingContent.substring(0, m.start) + replacement +
+            state.workingContent.substring(m.end);
         });
-        
-        state.processedCount = state.totalMatches;
+
+        state.processedCount += sorted.length;
         state.matches = [];
-        LineCache.clear(); // 内容改变，清空缓存
+        LineCache.clear(); // 修复缓存一致性
+
+        showToast(`成功${actionText} ${sorted.length} 处`, 'success');
+        announce(`批量处理完成，共处理 ${sorted.length} 处`);
         
-        showToast(`成功${actionText} ${state.processedCount} 处，请下载文件`, 'success');
-        announce(`一键处理完成，共处理 ${state.processedCount} 处`);
-        
-        // 隐藏处理按钮，显示下载按钮
-        dom.btnReplaceAll.style.display = 'none';
-        dom.btnPreview.style.display = 'none';
-        dom.btnDownload.style.display = 'inline-flex';
-        dom.btnDownload.classList.add('reveal');
-        
-        // 更新统计面板
         dom.valMatch.textContent = `0 处 (已全部${actionText})`;
         
-        // 自动滚动到下载按钮
-        dom.btnDownload.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 隐藏顶部处理按钮，显示下载
+        if (!saveHistory) {
+          dom.btnReplaceAll.style.display = 'none';
+          dom.btnPreview.style.display = 'none';
+        }
         
+        checkComplete(); // 统一调用完成逻辑，会自动展示下载按钮
       } catch (e) {
         showToast('处理出错：' + e.message, 'error');
       } finally {
         dom.loading.classList.remove('active');
-        dom.btnReplaceAll.disabled = false;
       }
     }, 50);
+  }
+
+  function replaceAllAction() {
+    if (!state.workingContent || state.matches.length === 0) return;
+    batchReplace({ saveHistory: false });
+  }
+
+  function deleteAll() {
+    if (state.matches.length === 0) return;
+    batchReplace({ saveHistory: true });
   }
 
   function undoAction() {
@@ -796,7 +838,10 @@
     state.processedCount = prev.processedCount;
     state.isComplete = false;
     dom.completeBanner.classList.remove('show');
-    dom.btnDeleteWord.disabled = false; dom.btnDeletePara.disabled = false; dom.btnSkip.disabled = false; dom.btnDeleteAll.disabled = false;
+    dom.btnDeleteWord.disabled = false; 
+    dom.btnDeletePara.disabled = false; 
+    dom.btnSkip.disabled = false; 
+    dom.btnDeleteAll.disabled = false;
     renderPreview();
     showToast('已撤销', 'success');
   }
@@ -807,17 +852,19 @@
     dom.counterCurrent.textContent = '0'; dom.counterTotal.textContent = '0';
     dom.previewProgress.textContent = '已处理 ' + state.processedCount;
     dom.btnPrev.disabled = true; dom.btnNext.disabled = true;
-    dom.btnDeleteWord.disabled = true; dom.btnDeletePara.disabled = true; dom.btnSkip.disabled = true; dom.btnDeleteAll.disabled = true;
+    dom.btnDeleteWord.disabled = true; 
+    dom.btnDeletePara.disabled = true; 
+    dom.btnSkip.disabled = true; 
+    dom.btnDeleteAll.disabled = true;
     dom.completeBanner.classList.add('show');
     
-    // 显示下载按钮并滚动过去
     dom.btnDownload.style.display = 'inline-flex'; 
     dom.btnDownload.classList.add('reveal');
     dom.btnDownload.scrollIntoView({ behavior: 'smooth', block: 'center' });
     
     showToast('全部处理完毕，可下载文件', 'success');
     announce('全部处理完毕');
-    dom.btnDownload.focus(); // A11y 焦点管理
+    dom.btnDownload.focus(); 
   }
 
   /* ===== 键盘快捷键 ===== */
@@ -825,7 +872,9 @@
     const tag = e.target.tagName;
     const isInput = tag === 'INPUT' || tag === 'TEXTAREA';
     
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !isInput) {
+    // 修复快捷键大小写问题
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === 'z' && !isInput) {
       e.preventDefault(); undoAction(); return;
     }
 
@@ -834,7 +883,7 @@
       else if (e.key === 'ArrowRight') { e.preventDefault(); navigateMatch(1); }
       else if (e.key === 'Delete') { e.preventDefault(); deleteWord(); }
       else if (e.key === 'Backspace' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); deleteParagraph(); }
-      else if (e.key.toLowerCase() === 's') { e.preventDefault(); skipMatch(); }
+      else if (k === 's') { e.preventDefault(); skipMatch(); }
     }
   }
 
@@ -849,7 +898,11 @@
         const handle = await window.showSaveFilePicker({ suggestedName, types: [{ description: '文本文件', accept: { 'text/plain': ['.txt'] } }] });
         const writable = await handle.createWritable(); await writable.write(blob); await writable.close();
         showToast('已保存', 'success'); return;
-      } catch (e) { if (e.name === 'AbortError') return; }
+      } catch (e) { 
+        if (e.name === 'AbortError') return;
+        console.warn('File save picker error:', e);
+        showToast('浏览器不支持或已阻止，已切换为默认下载方式', 'error');
+      }
     }
 
     const url = URL.createObjectURL(blob);
@@ -868,8 +921,8 @@
     state.matches = []; state.workingContent = null; state.currentIdx = 0; state.processedCount = 0; state.isComplete = false;
     dom.resultDetail.classList.remove('show'); 
     dom.btnPreview.style.display = 'none';
-    dom.btnReplaceAll.style.display = 'none'; // 重置时隐藏一键按钮
-    dom.btnDownload.style.display = 'none';   // 重置时隐藏下载按钮
+    dom.btnReplaceAll.style.display = 'none'; 
+    dom.btnDownload.style.display = 'none';   
     dom.previewCard.classList.remove('show'); 
     dom.completeBanner.classList.remove('show'); 
     History.clear();
