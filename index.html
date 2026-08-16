@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>文本处理专家 v2.3</title>
+  <title>文本处理专家 v2.3 (交互优化版)</title>
   <style>
     :root {
       --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --muted: #86868b; --border: #e8e8ed;
       --primary: #0071e3; --primary-hover: #0077ed; --primary-soft: #e8f1fd;
-      --case: #ff9f0a; --case-soft: #fff4e6; --regex: #bf5af2; --regex-soft: #f3e8ff;
+      --case: #ff9f0a; --case-soft: #fff4e6;
+      --regex: #bf5af2; --regex-soft: #f3e8ff;
       --simplify: #34c759; --simplify-soft: #e7f8ef;
       --success: #34c759; --danger: #ff3b30; --warning: #ff9f0a;
       --radius-lg: 20px; --radius-md: 14px; --radius-sm: 12px;
@@ -94,19 +95,39 @@
     .result-item:last-child { margin-bottom: 0; }
     .result-item .value { font-weight: 600; }
 
+    /* === 按钮配色与样式优化 === */
     .btn { height: 50px; padding: 0 1.5rem; border-radius: 999px; font-size: 1rem; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; transition: all 0.15s var(--ease-spring); line-height: 1; }
     .btn:active { transform: scale(0.97); }
+    
+    /* 主操作按钮：保持蓝色实心 */
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-primary:not(:disabled):hover { background: var(--primary-hover); box-shadow: 0 4px 12px rgba(0,113,227,0.25); }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-outline { background: #fff; color: var(--success); border-color: var(--success); font-weight: 600; }
-    .btn-outline:hover { background: var(--simplify-soft); }
+
+    /* 次级按钮（逐个预览）：改为幽灵蓝，轻盈辅助风格 */
+    .btn-outline {
+      background: #fff;
+      color: var(--primary); 
+      border-color: var(--primary);
+      font-weight: 500; 
+    }
+    .btn-outline:hover { background: var(--primary-soft); }
+
+    /* 危险操作按钮（一键删除）：改为警示橙，柔和但有提示性 */
+    .btn-danger {
+      background: #fff;
+      color: var(--warning); 
+      border-color: var(--warning);
+      font-weight: 500;
+    }
+    .btn-danger:hover { background: var(--case-soft); }
+
     .btn-ghost { background: #fbfbfd; color: var(--text); border-color: var(--border); }
     .btn-ghost:hover { background: #f2f2f5; }
-    .btn-danger { background: #fff; color: var(--danger); border-color: var(--danger); font-weight: 600; }
-    .btn-danger:hover { background: rgba(255,59,48,0.08); }
+    
     .btn-warn { background: #fff; color: var(--warning); border-color: var(--warning); font-weight: 600; }
     .btn-warn:hover { background: var(--case-soft); }
+    
     .btn-skip { background: #fbfbfd; color: var(--muted); border-color: var(--border); font-weight: 500; }
     .btn-skip:hover { background: #f2f2f5; color: var(--text); }
 
@@ -171,6 +192,7 @@
     .clear-file-btn { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.8); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; display: none; align-items: center; justify-content: center; cursor: pointer; color: var(--danger); font-size: 1.2rem; z-index: 2; }
     .clear-file-btn:hover { background: var(--danger); color: white; }
 
+    /* ===== 移动端全面适配优化 ===== */
     @media (max-width: 640px) {
       body { padding: 2rem 0.75rem 3rem; }
       .hero { margin-bottom: 1.5rem; }
@@ -190,12 +212,23 @@
       .context-header { padding: 0.5rem 0.75rem; font-size: 0.72rem; }
       .preview-nav { padding: 0.75rem 1rem; }
       .preview-progress { display: none; }
+      
       .action-group {
         grid-template-columns: repeat(2, 1fr);
       }
       .action-group.full-width .btn {
         grid-column: span 2;
       }
+
+      /* 修复移动端主按钮高度塌陷问题 */
+      .action-buttons .btn {
+        height: auto; /* 取消固定高度 */
+        min-height: 50px; /* 确保最小点击高度 */
+        padding: 0.9rem 1rem; /* 使用padding撑开，与模式按钮一致 */
+        font-size: 1rem; /* 字体稍微放大一点 */
+        border-radius: var(--radius-md);
+      }
+      
       .toast { top: 12px; font-size: 0.85rem; padding: 0.6rem 1rem; }
     }
   </style>
@@ -320,8 +353,9 @@
       <div class="action-buttons">
         <button class="btn btn-primary" id="btnProcess">开始处理</button>
         <button class="btn btn-outline" id="btnPreview" style="display:none">逐个预览</button>
+        <!-- 优化：去掉闪电图标，改用轻盈的警示橙配色 -->
         <button class="btn btn-danger" id="btnReplaceAll" style="display:none">
-          <span class="icon">⚡</span> 一键全部删除/替换
+          一键全部删除/替换
         </button>
       </div>
       
