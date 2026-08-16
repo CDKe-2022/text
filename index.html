@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>文本处理专家 v2.3 (交互优化版)</title>
+  <title>文本处理专家 v2.4 (交互与UI全面优化版)</title>
   <style>
     :root {
       --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --muted: #86868b; --border: #e8e8ed;
@@ -95,40 +95,56 @@
     .result-item:last-child { margin-bottom: 0; }
     .result-item .value { font-weight: 600; }
 
-    /* === 按钮配色与样式优化 === */
-    .btn { height: 50px; padding: 0 1.5rem; border-radius: 999px; font-size: 1rem; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; transition: all 0.15s var(--ease-spring); line-height: 1; }
+    /* === 按钮配色与样式优化 (统一实心胶囊风格) === */
+    .btn { 
+      height: 50px; 
+      padding: 0 1.5rem; 
+      border-radius: 999px !important; /* 强制胶囊形状 */
+      font-size: 1rem; 
+      font-weight: 500; 
+      font-family: inherit; 
+      cursor: pointer; 
+      border: none; /* 实心按钮通常不需要边框 */
+      display: inline-flex; 
+      align-items: center; 
+      justify-content: center; 
+      gap: 0.45rem; 
+      transition: all 0.15s var(--ease-spring); 
+      line-height: 1; 
+    }
     .btn:active { transform: scale(0.97); }
     
-    /* 主操作按钮：保持蓝色实心 */
+    /* 主操作：蓝色实心 */
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-primary:not(:disabled):hover { background: var(--primary-hover); box-shadow: 0 4px 12px rgba(0,113,227,0.25); }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* 次级按钮（逐个预览）：改为幽灵蓝，轻盈辅助风格 */
+    /* 次级操作（预览）：绿色实心，配合“浏览/安全”的语义 */
     .btn-outline {
-      background: #fff;
-      color: var(--primary); 
-      border-color: var(--primary);
-      font-weight: 500; 
+      background: var(--success); /* 使用主题绿色 */
+      color: #fff;
     }
-    .btn-outline:hover { background: var(--primary-soft); }
+    .btn-outline:hover { 
+      background: #2db34a; /* 悬停时稍微加深 */
+    }
 
-    /* 危险操作按钮（一键删除）：改为警示橙，柔和但有提示性 */
+    /* 危险操作（一键删除）：橙色实心，现代感的警示色 */
     .btn-danger {
-      background: #fff;
-      color: var(--warning); 
-      border-color: var(--warning);
-      font-weight: 500;
+      background: var(--warning); /* 使用主题橙色 */
+      color: #fff;
     }
-    .btn-danger:hover { background: var(--case-soft); }
+    .btn-danger:hover { 
+      background: #e6920a; /* 悬停时稍微加深 */
+    }
 
-    .btn-ghost { background: #fbfbfd; color: var(--text); border-color: var(--border); }
+    /* 辅助按钮保持原样 */
+    .btn-ghost { background: #fbfbfd; color: var(--text); border: 1px solid var(--border); }
     .btn-ghost:hover { background: #f2f2f5; }
     
-    .btn-warn { background: #fff; color: var(--warning); border-color: var(--warning); font-weight: 600; }
+    .btn-warn { background: #fff; color: var(--warning); border: 1px solid var(--warning); font-weight: 600; }
     .btn-warn:hover { background: var(--case-soft); }
     
-    .btn-skip { background: #fbfbfd; color: var(--muted); border-color: var(--border); font-weight: 500; }
+    .btn-skip { background: #fbfbfd; color: var(--muted); border: 1px solid var(--border); font-weight: 500; }
     .btn-skip:hover { background: #f2f2f5; color: var(--text); }
 
     .action-buttons { display: flex; gap: 1rem; margin-top: 1.5rem; }
@@ -175,6 +191,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      border-radius: 999px !important;
     }
     .action-group.full-width {
       grid-template-columns: 1fr;
@@ -220,13 +237,12 @@
         grid-column: span 2;
       }
 
-      /* 修复移动端主按钮高度塌陷问题 */
-      .action-buttons .btn {
-        height: auto; /* 取消固定高度 */
-        min-height: 50px; /* 确保最小点击高度 */
-        padding: 0.9rem 1rem; /* 使用padding撑开，与模式按钮一致 */
-        font-size: 1rem; /* 字体稍微放大一点 */
-        border-radius: var(--radius-md);
+      /* 移动端按钮高度优化 */
+      .action-buttons .btn, .action-group .btn {
+        height: auto;
+        min-height: 50px;
+        padding: 0.9rem 1rem;
+        font-size: 1rem;
       }
       
       .toast { top: 12px; font-size: 0.85rem; padding: 0.6rem 1rem; }
@@ -238,7 +254,7 @@
 <div class="container">
   <div class="hero">
     <h1>文本处理专家</h1>
-    <p class="subtitle">v2.3 · 区间删除增强 · 安全正则 · 智能编码</p>
+    <p class="subtitle">v2.4 · 区间预览增强 · 视觉体验优化</p>
   </div>
 
   <div id="a11yLive" class="sr-only" aria-live="polite" aria-atomic="true"></div>
@@ -322,7 +338,6 @@
         <div class="grid-row col-half" style="margin-top:0.75rem;">
           <div class="form-group">
             <label>删除范围</label>
-            <!-- 默认状态改为不包含 -->
             <div class="switch-container" data-type="range-include" role="switch" aria-checked="false" tabindex="0" aria-label="包含起始/结束文本本身">
               <div class="switch" id="switchRangeInclude"></div>
               <span class="switch-label">包含边界文本</span>
@@ -336,10 +351,18 @@
             </div>
           </div>
         </div>
+        
+        <!-- 区间模式的结果展示区 -->
         <div class="result-detail" id="rangeResultDetail" style="margin-top:1rem;">
           <div class="result-item"><span>起始文本位置</span><span class="value" id="valRangeStartPos">未找到</span></div>
           <div class="result-item"><span>结束文本位置</span><span class="value" id="valRangeEndPos">未使用</span></div>
           <div class="result-item"><span>将删除区间</span><span class="value" id="valRangeInterval">—</span></div>
+        </div>
+
+        <!-- 区间模式专用操作按钮 -->
+        <div class="action-buttons" id="rangeActionButtons" style="display:none;">
+          <button class="btn btn-outline" id="btnRangePreview">预览删除区域</button>
+          <button class="btn btn-danger" id="btnRangeConfirm">确认删除</button>
         </div>
       </div>
 
@@ -349,11 +372,10 @@
         <div class="result-item"><span>处理耗时</span><span class="value" id="valTime">0 ms</span></div>
       </div>
 
-      <!-- 操作按钮区 -->
-      <div class="action-buttons">
+      <!-- 查找模式操作按钮区 -->
+      <div class="action-buttons" id="searchActionButtons">
         <button class="btn btn-primary" id="btnProcess">开始处理</button>
         <button class="btn btn-outline" id="btnPreview" style="display:none">逐个预览</button>
-        <!-- 优化：去掉闪电图标，改用轻盈的警示橙配色 -->
         <button class="btn btn-danger" id="btnReplaceAll" style="display:none">
           一键全部删除/替换
         </button>
@@ -368,7 +390,7 @@
 
   <!-- 3. 预览与逐个处理 -->
   <div class="card preview-card" id="previewCard" tabindex="-1">
-    <div class="card-header"><span class="step-badge">3</span>逐个预览与处理</div>
+    <div class="card-header"><span class="step-badge">3</span>预览与确认</div>
     <div class="preview-nav">
       <div class="preview-counter">
         <span>第</span><span class="counter-current" id="counterCurrent">0</span><span class="counter-sep">/</span><span class="counter-total" id="counterTotal">0</span><span>处</span>
@@ -381,19 +403,24 @@
     </div>
     <div class="card-body">
       <div class="context-area">
-        <div class="context-header" id="contextHeader">关键词上下文（上下各 4 行）</div>
+        <div class="context-header" id="contextHeader">上下文预览（上下各 4 行）</div>
         <div class="context-body" id="contextBody"></div>
       </div>
 
-      <div class="action-group">
+      <div class="action-group" id="previewActions">
         <button class="btn btn-ghost" id="btnUndo" disabled title="撤销 (Ctrl+Z)">撤销</button>
         <button class="btn btn-warn" id="btnDeleteWord" title="删除/替换"><span id="btnDeleteWordLabel">删除关键词</span></button>
         <button class="btn btn-danger" id="btnDeletePara" title="删除整段 (Ctrl+Backspace)">删除整段</button>
         <button class="btn btn-skip" id="btnSkip" title="跳过 (S)">跳过</button>
       </div>
       
-      <div class="action-group full-width" style="margin-top: 0.5rem;">
+      <div class="action-group full-width" style="margin-top: 0.5rem;" id="batchActionGroup">
         <button class="btn btn-danger" id="btnDeleteAll">全部删除/替换 (当前预览列表)</button>
+      </div>
+      
+      <!-- 区间模式确认按钮 -->
+      <div class="action-group full-width" style="margin-top: 0.5rem; display:none;" id="rangeConfirmGroup">
+         <button class="btn btn-danger" id="btnConfirmRangeInPreview">确认删除并下载</button>
       </div>
 
       <div class="complete-banner" id="completeBanner">
@@ -464,6 +491,7 @@
     mode: 'search', // 'search' | 'range'
     options: { caseSensitive: false, isRegex: false, convertSimplify: false },
     range: { include: false, caseSensitive: false }, // 默认改为 false (不包含边界)
+    rangeDeleteMatch: null, // 存储区间删除的预览数据
     matches: [], currentIdx: 0, processedCount: 0, totalMatches: 0, isComplete: false
   };
 
@@ -493,7 +521,19 @@
     rangeResultDetail: $('rangeResultDetail'),
     valRangeStartPos: $('valRangeStartPos'),
     valRangeEndPos: $('valRangeEndPos'),
-    valRangeInterval: $('valRangeInterval')
+    valRangeInterval: $('valRangeInterval'),
+    rangeActionButtons: $('rangeActionButtons'),
+    btnRangePreview: $('btnRangePreview'),
+    btnRangeConfirm: $('btnRangeConfirm'),
+    
+    // 预览卡片内的区域确认按钮
+    rangeConfirmGroup: $('rangeConfirmGroup'),
+    btnConfirmRangeInPreview: $('btnConfirmRangeInPreview'),
+    
+    // 按钮组容器
+    searchActionButtons: $('searchActionButtons'),
+    previewActions: $('previewActions'),
+    batchActionGroup: $('batchActionGroup')
   };
 
   const chips = {
@@ -577,6 +617,27 @@
     dom.btnUndo.addEventListener('click', undoAction);
     dom.btnDeleteAll.addEventListener('click', deleteAll);
 
+    /* 区间模式按钮 */
+    dom.btnRangePreview.addEventListener('click', () => {
+      if (!state.rangeDeleteMatch) return;
+      // 将预览数据注入到 state.matches 中，复用逻辑
+      state.matches = [state.rangeDeleteMatch];
+      state.currentIdx = 0;
+      
+      // 切换预览卡片内的按钮显示状态
+      dom.previewActions.style.display = 'none'; // 隐藏逐个操作按钮
+      dom.batchActionGroup.style.display = 'none'; // 隐藏批量操作按钮
+      dom.rangeConfirmGroup.style.display = 'grid'; // 显示确认删除按钮
+      
+      startPreview(); // 复用预览逻辑
+    });
+    
+    // 预览卡片内的确认按钮
+    dom.btnConfirmRangeInPreview.addEventListener('click', confirmRangeDelete);
+
+    // 区间模式卡片内的直接确认按钮
+    dom.btnRangeConfirm.addEventListener('click', confirmRangeDelete);
+
     document.addEventListener('keydown', handleKeyboard);
   }
 
@@ -592,6 +653,32 @@
     dom.rangeModeUI.style.display = mode === 'range' ? 'block' : 'none';
     
     resetResult();
+  }
+  
+  /* ===== 区间删除确认逻辑 ===== */
+  function confirmRangeDelete() {
+    if (!state.rangeDeleteMatch) return;
+    
+    const { start, end } = state.rangeDeleteMatch;
+    state.workingContent = state.workingContent.substring(0, start) + state.workingContent.substring(end);
+    LineCache.clear();
+    
+    showToast('区间删除完成，可下载文件', 'success');
+    
+    // 重置状态
+    state.rangeDeleteMatch = null;
+    state.matches = [];
+    dom.rangeActionButtons.style.display = 'none';
+    dom.previewCard.classList.remove('show'); // 关闭预览卡片
+    
+    // 显示下载
+    dom.btnDownload.style.display = 'inline-flex';
+    dom.btnDownload.classList.add('reveal');
+    
+    // 恢复预览卡片内的按钮状态，以备下次使用
+    dom.previewActions.style.display = 'grid';
+    dom.batchActionGroup.style.display = 'grid';
+    dom.rangeConfirmGroup.style.display = 'none';
   }
 
   /* ===== 文件处理 ===== */
@@ -748,6 +835,7 @@
         dom.rangeResultDetail.classList.remove('show');
 
         if (state.totalMatches > 0) {
+          dom.btnProcess.style.display = 'none'; // 隐藏开始处理按钮
           dom.btnPreview.style.display = 'inline-flex'; dom.btnPreview.classList.add('reveal');
           dom.btnReplaceAll.style.display = 'inline-flex'; dom.btnReplaceAll.classList.add('reveal'); 
           showToast('找到 ' + state.totalMatches + ' 处命中', 'success');
@@ -804,7 +892,7 @@
         });
 
         dom.valConvert.textContent = convertDone ? '已完成' : '未勾选';
-        dom.valMatch.textContent = '区间删除';
+        dom.valMatch.textContent = '等待确认';
         dom.valTime.textContent = (performance.now() - t0).toFixed(1) + ' ms';
         dom.resultDetail.classList.add('show');
         dom.rangeResultDetail.classList.add('show');
@@ -813,38 +901,27 @@
           dom.valRangeStartPos.textContent = "未找到";
           dom.valRangeEndPos.textContent = "未找到";
           dom.valRangeInterval.textContent = "无法执行删除";
+          dom.rangeActionButtons.style.display = 'none';
           showToast('未找到满足条件的区间', 'error');
-          return;
-        }
-
-        dom.valRangeStartPos.textContent = `第 ${rangeInfo.realStartIdx + 1} 字符`;
-        if(rangeInfo.realEndIdx !== null) {
-          dom.valRangeEndPos.textContent = `第 ${rangeInfo.realEndIdx + 1} 字符`;
         } else {
-          dom.valRangeEndPos.textContent = "文件末尾";
+          dom.valRangeStartPos.textContent = `第 ${rangeInfo.realStartIdx + 1} 字符`;
+          if(rangeInfo.realEndIdx !== null) {
+            dom.valRangeEndPos.textContent = `第 ${rangeInfo.realEndIdx + 1} 字符`;
+          } else {
+            dom.valRangeEndPos.textContent = "文件末尾";
+          }
+          dom.valRangeInterval.textContent = `第 ${rangeInfo.deleteStart + 1} ~ ${rangeInfo.deleteEnd} 字符`;
+
+          // 核心：生成一个虚拟的 match 对象，存入 state.rangeDeleteMatch
+          state.rangeDeleteMatch = {
+            start: rangeInfo.deleteStart,
+            end: rangeInfo.deleteEnd,
+            text: `[删除区间] ${dom.valRangeInterval.textContent}`
+          };
+
+          dom.rangeActionButtons.style.display = 'flex';
+          showToast('已定位区间，请预览或确认删除', 'success');
         }
-        dom.valRangeInterval.textContent = `第 ${rangeInfo.deleteStart + 1} ~ ${rangeInfo.deleteEnd} 字符`;
-
-        const newContent = 
-          state.workingContent.substring(0, rangeInfo.deleteStart) +
-          state.workingContent.substring(rangeInfo.deleteEnd);
-        
-        state.workingContent = newContent;
-        LineCache.clear();
-
-        state.matches = [];
-        state.totalMatches = 0;
-        state.processedCount = 1;
-        state.isComplete = true;
-        History.clear();
-
-        dom.btnPreview.style.display = 'none';
-        dom.btnReplaceAll.style.display = 'none';
-        dom.btnDownload.style.display = 'inline-flex';
-        dom.btnDownload.classList.add('reveal');
-
-        showToast('区间删除完成，可下载文件', 'success');
-        announce('区间删除完成');
 
       } catch (err) {
         showToast('处理出错：' + err.message, 'error');
@@ -855,7 +932,7 @@
     }, 30);
   }
 
-  /* ===== 核心：区间计算逻辑 (修正版) ===== */
+  /* ===== 核心：区间计算逻辑 ===== */
   function computeDeleteRange({ content, startText, endText, caseSensitive, includeStartEnd }) {
     const findPos = (text) => {
       if (!text) return null;
@@ -863,25 +940,20 @@
       return matches.length > 0 ? matches[0] : null;
     };
 
-    // 场景 A: 填了起始，没填结束 -> 删除【文件头 -> 起始文本】
     if (startText && !endText) {
       const startMatch = findPos(startText);
       if (!startMatch) return null;
-      
       return {
         deleteStart: 0,
-        // include=true: 删到结尾(包含文本); include=false: 删到开头(不含文本)
         deleteEnd: includeStartEnd ? startMatch.end : startMatch.start,
         realStartIdx: 0,
         realEndIdx: startMatch.start
       };
     }
 
-    // 场景 B: 没填起始，填了结束 -> 删除【文件头 -> 结束文本】
     if (!startText && endText) {
       const endMatch = findPos(endText);
       if (!endMatch) return null;
-
       return {
         deleteStart: 0,
         deleteEnd: includeStartEnd ? endMatch.end : endMatch.start,
@@ -890,16 +962,12 @@
       };
     }
 
-    // 场景 C: 两个都填了 -> 删除【起始文本 -> 结束文本】
     if (startText && endText) {
       const startMatch = findPos(startText);
       const endMatch = findPos(endText);
-
       if (!startMatch || !endMatch) return null;
       if (startMatch.start >= endMatch.start) return null;
 
-      // include=true: 删除包含两端 (StartStart -> EndEnd)
-      // include=false: 删除不含两端 (StartEnd -> EndStart)
       return {
         deleteStart: includeStartEnd ? startMatch.start : startMatch.end,
         deleteEnd: includeStartEnd ? endMatch.end : endMatch.start,
@@ -907,22 +975,30 @@
         realEndIdx: endMatch.start
       };
     }
-
     return null;
   }
 
-  /* ===== 预览与导航 (仅查找模式) ===== */
+  /* ===== 预览与导航 ===== */
   function startPreview() {
     if (state.matches.length === 0) return;
     state.currentIdx = 0; state.processedCount = 0; state.isComplete = false;
     dom.previewCard.classList.add('show'); dom.completeBanner.classList.remove('show');
     dom.btnDownload.style.display = 'none';
-    dom.btnReplaceAll.style.display = 'none';
-    dom.btnPreview.style.display = 'none';
-    dom.btnDeleteWord.disabled = false; 
-    dom.btnDeletePara.disabled = false; 
-    dom.btnSkip.disabled = false; 
-    dom.btnDeleteAll.disabled = false;
+    
+    // 如果是普通查找模式，隐藏批量替换按钮，显示逐个操作按钮
+    if (state.mode === 'search') {
+        dom.btnReplaceAll.style.display = 'none';
+        dom.btnPreview.style.display = 'none';
+        dom.previewActions.style.display = 'grid';
+        dom.batchActionGroup.style.display = 'grid';
+        dom.rangeConfirmGroup.style.display = 'none';
+        
+        dom.btnDeleteWord.disabled = false; 
+        dom.btnDeletePara.disabled = false; 
+        dom.btnSkip.disabled = false; 
+        dom.btnDeleteAll.disabled = false;
+    }
+    
     renderPreview();
     dom.previewCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     dom.previewCard.focus(); 
@@ -945,10 +1021,19 @@
     const startLine = Math.max(0, hitLineIdx - CONFIG.CONTEXT_LINES);
     const endLine = Math.min(lines.length - 1, hitLineIdx + CONFIG.CONTEXT_LINES);
     dom.contextBody.innerHTML = '';
+    
+    // 判断是否为“区间删除”预览，如果是，需要高亮多行
+    const isRangePreview = (match.text || '').startsWith('[删除区间]');
+    
     for (let i = startLine; i <= endLine; i++) {
       const line = lines[i];
       const lineDiv = document.createElement('div');
-      lineDiv.className = 'context-line' + (i === hitLineIdx ? ' hit-line' : '');
+      
+      // 如果是区间预览，且当前行在删除范围内，则高亮
+      let isInRange = isRangePreview && (line.end > match.start && line.start < match.end);
+      
+      lineDiv.className = 'context-line' + (i === hitLineIdx || isInRange ? ' hit-line' : '');
+      
       const numSpan = document.createElement('span'); numSpan.className = 'line-number'; numSpan.textContent = (i + 1);
       const contentSpan = document.createElement('span'); contentSpan.className = 'line-content';
       if (line.text.length === 0) { contentSpan.classList.add('line-empty'); contentSpan.textContent = '（空行）'; }
@@ -1209,8 +1294,15 @@
 
   function resetResult() {
     state.matches = []; state.workingContent = null; state.currentIdx = 0; state.processedCount = 0; state.isComplete = false;
+    state.rangeDeleteMatch = null; // 清空区间预览数据
+    
     dom.resultDetail.classList.remove('show'); 
     dom.rangeResultDetail.classList.remove('show');
+    dom.rangeActionButtons.style.display = 'none';
+    
+    // 恢复“开始处理”按钮
+    dom.btnProcess.style.display = 'inline-flex';
+    
     dom.btnPreview.style.display = 'none';
     dom.btnReplaceAll.style.display = 'none'; 
     dom.btnDownload.style.display = 'none';   
